@@ -16,13 +16,21 @@ set (CMAKE_AUTOMOC ON)
 
 add_library(shared STATIC
   basic_process.cpp
+  get_image_size.cpp
   process_spec.cpp
+  qemuimg_process_spec.cpp
   simple_process_spec.cpp
   sshfs_server_process_spec.cpp
   ${CMAKE_SOURCE_DIR}/include/multipass/process.h)
 
 target_link_libraries(shared
+  utils
   Qt5::Core)
 
-add_subdirectory(linux)
-
+if(MSVC)
+  add_subdirectory(win)
+elseif(APPLE)
+  add_subdirectory(macos)
+else()
+  add_subdirectory(linux)
+endif()
