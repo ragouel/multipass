@@ -59,6 +59,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "../platform/backends/shared/get_image_size.h"
+
 namespace mp = multipass;
 namespace mpl = multipass::logging;
 
@@ -321,18 +323,28 @@ auto validate_create_arguments(const mp::LaunchRequest* request)
     auto option_errors = mp::LaunchError{};
 
     const auto opt_mem_size = try_mem_size(mem_size_str.empty() ? mp::default_memory_size : mem_size_str);
-    const auto opt_disk_space = try_mem_size(disk_space_str.empty() ? mp::default_disk_size : disk_space_str);
 
-    mp::MemorySize mem_size{}, disk_space{};
+    mp::MemorySize mem_size{};
     if (opt_mem_size && *opt_mem_size >= min_mem)
         mem_size = *opt_mem_size;
     else
         option_errors.add_error_codes(mp::LaunchError::INVALID_MEM_SIZE);
 
-    if (opt_disk_space && *opt_disk_space >= min_disk)
-        disk_space = *opt_disk_space;
-    else
-        option_errors.add_error_codes(mp::LaunchError::INVALID_DISK_SIZE);
+    // If the user did not specify a disk size, then 0 will be passed down. Otherwise, the specified size will be
+    // checked.
+    mp::MemorySize disk_space{}; // Zero by default.
+    if (!disk_space_str.empty())
+    {
+        auto opt_disk_space = try_mem_size(disk_space_str);
+        if (opt_disk_space && *opt_disk_space >= min_disk)
+        {
+            disk_space = *opt_disk_space;
+        }
+        else
+        {
+            option_errors.add_error_codes(mp::LaunchError::INVALID_DISK_SIZE);
+        }
+    }
 
     if (!request->instance_name().empty() && !mp::utils::valid_hostname(request->instance_name()))
         option_errors.add_error_codes(mp::LaunchError::INVALID_HOSTNAME);
@@ -1964,7 +1976,27 @@ void mp::Daemon::create_vm(const CreateRequest* request, grpc::ServerWriter<Crea
                         break;
                     }
                 }
-                auto vm_desc = to_machine_desc(request, name, checked_args.mem_size, checked_args.disk_space, mac_addr,
+
+                mp::MemorySize image_size = mp::get_image_size(vm_image);
+                mp::MemorySize disk_space{};
+
+                if (checked_args.disk_space.in_bytes() == 0)
+                {
+                    auto default_disk_size_as_struct = mp::MemorySize(mp::default_disk_size);
+                    disk_space = image_size < default_disk_size_as_struct ? default_disk_size_as_struct : image_size;
+                }
+                else if (checked_args.disk_space < image_size)
+                {
+                    throw std::runtime_error(fmt::format("requested image size ({} bytes) is smaller than image "
+                                                         "size ({} bytes)",
+                                                         checked_args.disk_space.in_bytes(), image_size.in_bytes()));
+                }
+                else
+                {
+                    disk_space = checked_args.disk_space;
+                }
+
+                auto vm_desc = to_machine_desc(request, name, checked_args.mem_size, disk_space, mac_addr,
                                                config->ssh_username, vm_image, meta_data_cloud_init_config,
                                                user_data_cloud_init_config, vendor_data_cloud_init_config);
 
