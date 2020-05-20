@@ -41,7 +41,7 @@ const auto null_string_matcher = static_cast<mp::optional<decltype(_)>>(mp::null
 using ImageConversionParamType =
     std::tuple<const char*, const char*, mp::ProcessState, bool, mp::ProcessState, mp::optional<Matcher<std::string>>>;
 
-QByteArray fake_img_info(const mp::MemorySize& size)
+/*QByteArray fake_img_info(const mp::MemorySize& size)
 {
     return QByteArray::fromStdString(
         fmt::format("some\nother\ninfo\nfirst\nvirtual size: {} ({} bytes)\nmore\ninfo\nafter\n", size.in_gigabytes(),
@@ -68,7 +68,7 @@ void simulate_qemuimg_info(const mpt::MockProcess* process, const QString& expec
         EXPECT_CALL(*process, read_all_standard_error).WillOnce(Return(produce_output));
     else
         ON_CALL(*process, read_all_standard_error).WillByDefault(Return(produce_output));
-}
+}*/
 
 void simulate_qemuimg_info_with_json(const mpt::MockProcess* process, const QString& expect_img,
                                      const mp::ProcessState& produce_result, const QByteArray& produce_output = {})
@@ -135,19 +135,19 @@ void test_image_resizing(const char* img, const mp::MemorySize& img_virtual_size
 {
     auto process_count = 0;
     auto mock_factory_scope = mpt::MockProcessFactory::Inject();
-    const auto expected_final_process_count = attempt_resize ? 2 : 1;
+    const auto expected_final_process_count = attempt_resize ? 1 : 0;
 
     mock_factory_scope->register_callback([&](mpt::MockProcess* process) {
         ASSERT_LE(++process_count, expected_final_process_count);
         if (process_count == 1)
-        {
+        /*{
             auto msg = QByteArray{qemuimg_info_output};
             if (msg.isEmpty())
                 msg = fake_img_info(img_virtual_size);
 
             simulate_qemuimg_info(process, img, qemuimg_info_result, msg);
         }
-        else
+        else*/
         {
             simulate_qemuimg_resize(process, img, requested_size, qemuimg_resize_result);
         }

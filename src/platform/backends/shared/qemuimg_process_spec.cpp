@@ -17,6 +17,9 @@
 
 #include "qemuimg_process_spec.h"
 
+#include <QString>
+#include <QStringList>
+#include <iostream>
 #include <multipass/snap_utils.h>
 
 namespace mp = multipass;
@@ -24,6 +27,12 @@ namespace mu = multipass::utils;
 
 mp::QemuImgProcessSpec::QemuImgProcessSpec(const QStringList& args) : args{args}
 {
+    std::cerr << "args";
+    for (QString a : args)
+    {
+        std::cerr << "," << a.toStdString();
+    }
+    std::cerr << std::endl;
 }
 
 QString mp::QemuImgProcessSpec::program() const
